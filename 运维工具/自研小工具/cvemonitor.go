@@ -28,7 +28,7 @@ var (
 
 func times() (lastWeek string)  {
 	nTime := time.Now()
-	yesTime := nTime.AddDate(0,0,-1) //修改监控时间
+	yesTime := nTime.AddDate(0,0,-2) //修改监控时间
 	lastWeek = yesTime.Format("2006-01-02")
 	return lastWeek
 }
