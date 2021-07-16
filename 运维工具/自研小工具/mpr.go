@@ -1,4 +1,3 @@
-//增加并发
 package main
 
 import (
@@ -235,11 +234,12 @@ func concurrent(path string,thread int)  {
 			// 做一些业务逻辑处理
 			msg := <-ch
 			resp:=urlBurst(msg)
-			if resp.StatusCode !=0 {
-				fmt.Println(msg,resp.Title,resp.StatusCode)
-				time.Sleep(1 * time.Second)
-				wg.Done()
+			if resp.StatusCode ==0{
+				return
 			}
+			fmt.Println(msg,resp.Title,resp.StatusCode)
+			time.Sleep(1 * time.Second)
+			wg.Done()
 		}
 		g.Run(goFunc)
 	}
