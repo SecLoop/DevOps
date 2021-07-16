@@ -1,3 +1,4 @@
+//增加并发
 package main
 
 import (
@@ -11,10 +12,10 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strings"
+	"sync"
 	"time"
 )
-
-// masscan analysis request
 
 type Nmaprun struct {
 	XMLName          xml.Name `xml:"nmaprun"`
@@ -68,22 +69,10 @@ type Nmaprun struct {
 	} `xml:"runstats"`
 }
 
-var (
-	//忽略ssl证书，并添socks5代理
-	//dialer, err := proxy.SOCKS5("tcp", "127.0.0.1:7890", nil, proxy.Direct)
-	//if err != nil {
-	//	fmt.Fprintln(os.Stderr, "can't connect to the proxy:", err)
-	//	os.Exit(1)
-	//}
-	//// setup a http client
-	//httpTransport := &http.Transport{}
-	//client := &http.Client{Transport: httpTransport}
-	//// set our socks5 as the dialer
-	//httpTransport.Dial = dialer.Dial
-
-	//忽略ssl证书
-	tr = &http.Transport{
+var(
+	tr =&http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		//Proxy: proxy,
 		DialContext: (&net.Dialer{
 			Timeout:   30 * time.Second,
 			KeepAlive: 30 * time.Second,
@@ -97,9 +86,88 @@ var (
 	}
 	client = &http.Client{
 		Transport: tr,
+		Timeout: 5 * time.Second,
 	}
+	//http代理调试
+	//proxy = func(_ *http.Request) (*url.URL, error) {
+	//	return url.Parse("http://127.0.0.1:8080")
+	//}
 	p = flag.String("p", "", "Masscan Xml 文件路径")
+	t = flag.Int("t", 10, "并发数")
+
 )
+type Parameter struct {
+	URL     string            `json:"featuresurl"`
+	Method  string            `json:"method"`
+	Data    string            `json:"data"`
+	Headers http.Header       `json:"headers"`
+}
+type Response struct {
+	Title     string           			`json:"body"`
+	StatusCode 	  int          			`json:"statuscode"`
+	RespHeaders map[string][]string 	`json:"respheaders"`
+	Err 	error			   			`json:"err"`
+}
+// Req Request请求
+func Req(link Parameter) (reqResp Response) {
+	reqBodyReader := strings.NewReader(link.Data)
+	request, err := http.NewRequest(link.Method, link.URL, reqBodyReader)
+	if err != nil {
+		resp:= Response{
+			Err: err,
+		}
+		return resp
+	}
+	// set headers
+	for key, values := range link.Headers {
+		for i := range values {
+			if i == 0 {
+				request.Header.Set(key, values[i])
+			} else {
+				request.Header.Add(key, values[i])
+			}
+		}
+	}
+	response, err := client.Do(request)
+	if err!=nil{
+		resp:= Response{
+			Err: err,
+		}
+		return resp
+	}
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		resp:= Response{
+			Err: err,
+		}
+		return resp
+	}
+	r := regexp.MustCompile(`<title>(.*?)</title>`)
+	title := r.FindString(string(body))
+	resp:= Response{
+		Title: title,
+		StatusCode: response.StatusCode,
+		RespHeaders: map[string][]string{
+			"Content-Type": {response.Header.Get("Content-Type")},
+		},
+	}
+	return resp
+}
+
+//请求封装
+func urlBurst(reqBurstUrl string) (respBody Response)  {
+	//reqBurstUrl 组装后的Url
+	req:= Parameter{
+		URL:    reqBurstUrl,
+		Method: "GET",
+		Headers: map[string][]string{
+			"User-Agent": {"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4542.2 Safari/537.36"},
+		},
+	}
+	respBody = Req(req)
+	return respBody
+}
+
 
 func readXml(path string)(urls []string)  {
 	file, err := os.Open(path) // For read access.
@@ -127,19 +195,57 @@ func readXml(path string)(urls []string)  {
 	return urls
 }
 
-func getRequest(url string) (respCode,title string ,err error) {
-	req,_ := http.NewRequest("GET",url,nil)
-	req.Header.Set("User-Agent","Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:89.0) Gecko/20100101 Firefox/89.0")
-	resp,err := client.Do(req)
-	if err!=nil{
-		return "","",err
-	}
-	body, _:= ioutil.ReadAll(resp.Body)
-	r := regexp.MustCompile(`<title>(.*?)</title>`)
-	title = r.FindString(string(body))
-	respCode = resp.Status
-	return respCode,title,nil
+/*并发*/
+type GliMit struct {
+	Num int
+	C   chan struct{}
 }
+
+func NewG(num int) *GliMit {
+	return &GliMit{
+		Num: num,
+		C : make(chan struct{}, num),
+	}
+}
+
+func (g *GliMit) Run(f func()){
+	g.C <- struct{}{}
+	go func() {
+		f()
+		<-g.C
+	}()
+}
+
+func concurrent(path string,thread int)  {
+	ch := make(chan string)
+	//   "/Users/spirit/Project/golang/other/reqTest/test.json"
+	urls:=readXml(path)
+	for _,url:=range urls{
+		url := url
+		go func() {
+			ch <- url
+		}()
+	}
+	// 限制线程数
+	g := NewG(thread)
+	wg := sync.WaitGroup{}
+	for i := 0; i < len(urls); i++ {
+		wg.Add(1)
+		goFunc := func() {
+			// 做一些业务逻辑处理
+			msg := <-ch
+			resp:=urlBurst(msg)
+			if resp.StatusCode !=0 {
+				fmt.Println(msg,resp.Title,resp.StatusCode)
+				time.Sleep(1 * time.Second)
+				wg.Done()
+			}
+		}
+		g.Run(goFunc)
+	}
+	wg.Wait()
+}
+
 
 func main()  {
 	flag.Parse()
@@ -148,11 +254,5 @@ func main()  {
 		flag.Usage()
 		return
 	}
-	urls:=readXml(*p)
-	for _,url:=range urls{
-		if respCode,title,_:=getRequest(url); respCode!="" {
-			fmt.Println(url,title,respCode)
-		}
-
-	}
+	concurrent(*p,*t)
 }
