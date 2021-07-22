@@ -91,6 +91,8 @@ var(
 	//proxy = func(_ *http.Request) (*url.URL, error) {
 	//	return url.Parse("http://127.0.0.1:8080")
 	//}
+	wg sync.WaitGroup
+	ch = make(chan string)
 	p = flag.String("p", "", "Masscan Xml 文件路径")
 	t = flag.Int("t", 10, "并发数")
 
@@ -215,9 +217,7 @@ func (g *GliMit) Run(f func()){
 	}()
 }
 
-func concurrent(path string,thread int)  {
-	ch := make(chan string)
-	//   "/Users/spirit/Project/golang/other/reqTest/test.json"
+func numCensus(path string) int  {
 	urls:=readXml(path)
 	for _,url:=range urls{
 		url := url
@@ -225,34 +225,33 @@ func concurrent(path string,thread int)  {
 			ch <- url
 		}()
 	}
+	return len(urls)
+}
+func main()  {
+	flag.Parse()
+	if *p == "" {
+		fmt.Println("请输入Xml文件路径")
+		flag.Usage()
+		return
+	}
+	number:=numCensus(*p)
 	// 限制线程数
-	g := NewG(thread)
-	wg := sync.WaitGroup{}
-	for i := 0; i < len(urls); i++ {
+	g := NewG(*t)
+	for i := 0; i < number; i++ {
 		wg.Add(1)
 		goFunc := func() {
 			// 做一些业务逻辑处理
-			msg := <-ch
-			resp:=urlBurst(msg)
+			defer wg.Done()
+			url := <-ch
+			resp:=urlBurst(url)
 			if resp.StatusCode ==0{
 				return
+			}else {
+				fmt.Println(url,resp.Title,resp.StatusCode)
+				time.Sleep(time.Second)
 			}
-			fmt.Println(msg,resp.Title,resp.StatusCode)
-			time.Sleep(1 * time.Second)
-			wg.Done()
 		}
 		g.Run(goFunc)
 	}
 	wg.Wait()
-}
-
-
-func main()  {
-	flag.Parse()
-	if *p == "" {
-		fmt.Println("请输入Masscan Xml 文件路径")
-		flag.Usage()
-		return
-	}
-	concurrent(*p,*t)
 }
