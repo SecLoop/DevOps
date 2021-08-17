@@ -1,16 +1,15 @@
-//批量探测服务
 package main
 
 import (
 	"bufio"
 	"crypto/tls"
-	"encoding/xml"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -21,63 +20,18 @@ import (
 参考：
 
 https://blog.csdn.net/m0_37422289/article/details/105328796
+https://segmentfault.com/a/1190000017956396
 */
-type Nmaprun struct {
-	XMLName          xml.Name `xml:"nmaprun"`
-	Text             string   `xml:",chardata"`
-	Scanner          string   `xml:"scanner,attr"`
-	Start            string   `xml:"start,attr"`
-	Version          string   `xml:"version,attr"`
-	Xmloutputversion string   `xml:"xmloutputversion,attr"`
-	Scaninfo         struct {
-		Text     string `xml:",chardata"`
-		Type     string `xml:"type,attr"`
-		Protocol string `xml:"protocol,attr"`
-	} `xml:"scaninfo"`
-	Host []struct {
-		Text    string `xml:",chardata"`
-		Endtime string `xml:"endtime,attr"`
-		Address struct {
-			Text     string `xml:",chardata"`
-			Addr     string `xml:"addr,attr"`
-			Addrtype string `xml:"addrtype,attr"`
-		} `xml:"address"`
-		Ports struct {
-			Text string `xml:",chardata"`
-			Port struct {
-				Text     string `xml:",chardata"`
-				Protocol string `xml:"protocol,attr"`
-				Portid   string `xml:"portid,attr"`
-				State    struct {
-					Text      string `xml:",chardata"`
-					State     string `xml:"state,attr"`
-					Reason    string `xml:"reason,attr"`
-					ReasonTtl string `xml:"reason_ttl,attr"`
-				} `xml:"state"`
-			} `xml:"port"`
-		} `xml:"ports"`
-	} `xml:"host"`
-	Runstats struct {
-		Text     string `xml:",chardata"`
-		Finished struct {
-			Text    string `xml:",chardata"`
-			Time    string `xml:"time,attr"`
-			Timestr string `xml:"timestr,attr"`
-			Elapsed string `xml:"elapsed,attr"`
-		} `xml:"finished"`
-		Hosts struct {
-			Text  string `xml:",chardata"`
-			Up    string `xml:"up,attr"`
-			Down  string `xml:"down,attr"`
-			Total string `xml:"total,attr"`
-		} `xml:"hosts"`
-	} `xml:"runstats"`
-}
 
 var(
+	wg sync.WaitGroup
+	ch = make(chan string)
+	p = flag.String("p", "", "文件路径")
+	t = flag.Int("t", 10, "并发数")
+	s = flag.String("s", "", "代理socks5://127.0.0.1:7890")
 	tr =&http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		//Proxy: proxy,
+		Proxy: proxy,
 		DialContext: (&net.Dialer{
 			Timeout:   30 * time.Second,
 			KeepAlive: 30 * time.Second,
@@ -88,18 +42,20 @@ var(
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	}
+
 	client = &http.Client{
 		Transport: tr,
 		Timeout: 5 * time.Second,
 	}
+
 	//http代理调试
 	//proxy = func(_ *http.Request) (*url.URL, error) {
-	//	return url.Parse("http://127.0.0.1:8080")
+	//	return url.Parse("http://127.0.0.1:7890")
 	//}
-	wg sync.WaitGroup
-	ch = make(chan string)
-	p = flag.String("p", "", "文件路径")
-	t = flag.Int("t", 10, "并发数")
+	//socks5代理
+	proxy = func(_ *http.Request) (*url.URL, error) {
+		return url.Parse(*s)
+	}
 
 )
 type Parameter struct {
@@ -233,6 +189,7 @@ func main()  {
 		return
 	}
 	number:=numCensus(*p)
+	fmt.Println(number)
 	// 限制线程数
 	g := NewG(*t)
 	for i := 0; i < number; i++ {
