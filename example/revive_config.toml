@@ -1,0 +1,90 @@
+## revive 配置
+
+```
+ignoreGeneratedHeader = false
+severity = "warning"
+confidence = 0.8
+errorCode = 0
+warningCode = 0
+
+#强制检查
+[rule.imports-blacklist]#不允许导入指定的包
+[rule.useless-break]#break警告case 子句中的无用语句
+[rule.defer]#警告一些延迟问题
+[rule.range-val-address]#如果范围值的地址被危险地使用，则发出警告
+
+#代码规范
+[rule.time-naming]#围绕时间变量命名的约定
+[rule.context-as-argument]#context.Context应该是函数的第一个参数。
+[rule.exported]#导出符号的命名和注释约定。
+[rule.increment-decrement]#使用i++andi--代替i += 1and i -= 1。
+[rule.var-naming]#命名规则。
+[rule.package-comments]#包注释约定。
+[rule.error-return]#错误返回参数应该是最后一个。
+[rule.error-strings]#围绕错误字符串的约定。
+[rule.error-naming]#错误变量的命名。
+[rule.confusing-results]#建议命名可能令人困惑的函数结果
+[rule.use-any]#interface{}建议用它的别名替换any
+[rule.atomic]#检查包的常见错误sync/atomic用法
+
+#代码日常优化
+[rule.var-declaration]#减少变量声明的冗余。
+[rule.time-equal]#建议使用time.Time.Equal代替==and!=进行相等检查时间
+[rule.unexported-return]#当公共返回来自未导出的类型时发出警告.
+[rule.errorf]#应该替换errors.New(fmt.Sprintf())为fmt.Errorf()
+[rule.blank-imports]#禁止空白导入
+[rule.if-return]#如果在返回错误时是冗余的。
+[rule.range]#在迭代集合时防止冗余变量。
+[rule.confusing-naming]#警告名称仅大写不同的方法
+[rule.get-return]#对不产生任何结果的 getter 发出警告
+[rule.unused-parameter]#建议重命名或删除未使用的函数参数
+[rule.unreachable-code]#对无法访问的代码发出警告
+[rule.string-of-int]#警告从 int 到 string 的可疑转换
+[rule.unconditional-recursion]#警告将导致（直接）无限递归的函数调用
+#代码逻辑优化
+[rule.indent-error-flow]#防止多余的 else 语句
+[rule.superfluous-else]#防止多余的 else 语句（扩展indent-error-flow）
+[rule.unnecessary-stmt]#建议删除或简化不必要的陈述
+[rule.optimize-operands-order]#检查低效的条件表达式
+[rule.early-return]#发现可以重构以简化代码阅读的 if-then-else 语句
+[rule.identical-branches]#then发现具有相同和else分支的 if-then-else 语句
+
+#性能检测
+#[rule.datarace]#发现潜在的数据竞争
+
+#暂时不用
+#[rule.dot-imports]#禁止.进口。
+#[rule.receiver-naming]#围绕接收者命名的约定。
+#[rule.argument-limit]#指定函数可以接收的最大参数数
+#[rule.context-keys-type]#	禁止在context.WithValue
+#[rule.cyclomatic]#设置最大圈复杂度的限制。
+#[rule.max-public-structs]#文件中公共结构的最大数量。
+#[rule.file-header]#每个文件应具有的标头。
+#[rule.empty-block]#对空代码块发出警告
+#[rule.modifies-parameter]#对函数参数的赋值发出警告
+#[rule.deep-exit]#在函数中查找程序退出，而不是main()orinit()
+#[rule.add-constant]#建议对幻数和字符串文字使用常量
+#[rule.flag-parameter]#警告创建控制耦合的布尔参数
+#[rule.struct-tag]#检查常见的结构标签，如json, xml,yaml
+#[rule.modifies-value-receiver]#对值传递方法接收器的分配发出警告
+#[rule.constant-logical-expr]#警告常量逻辑表达式
+#[rule.bool-literal-in-expr]#建议从逻辑表达式中删除布尔文字
+#[rule.redefines-builtin-id]#警告重新定义内置标识符
+#[rule.function-result-limit]#指定函数可以返回的最大结果数
+#[rule.range-val-in-closure]#如果在作为 goroutine 调度的闭包中使用范围值时发出警告
+#[rule.waitgroup-by-value]#警告将 sync.WaitGroup 作为按值参数的函数
+#[rule.empty-lines]#当块中有标题或尾随换行时发出警告
+#[rule.line-length-limit]#指定一行中的最大字符数
+#[rule.call-to-gc]#对垃圾收集器的显式调用发出警告
+#[rule.duplicated-imports]#查找导入两次或多次的包
+#[rule.import-shadowing]#发现隐藏导入的标识符
+#[rule.bare-return]#对裸回报发出警告
+#[rule.unused-receiver]#建议重命名或删除未使用的方法接收器
+#[rule.unhandled-error]#警告函数调用返回的未处理错误
+#[rule.cognitive-complexity]#设置最大认知复杂度的限制。
+#[rule.string-format]#对一个或多个用户配置的正则表达式失败的特定字符串文字发出警告
+#[rule.unexported-naming]#警告错误命名的未导出符号
+#[rule.function-length]#警告函数超过语句或最大行数
+#[rule.nested-structs]#警告结构中的结构
+#[rule.banned-characters]#检查标识符中的禁止字符
+```
